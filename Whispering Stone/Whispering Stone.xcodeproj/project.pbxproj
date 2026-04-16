@@ -9,12 +9,12 @@
 /* Begin PBXBuildFile section */
 		F24791A12F638DE0007E34B8 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = F24791A02F638DE0007E34B8 /* ClerkKit */; };
 		F24791A32F638DE0007E34B8 /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = F24791A22F638DE0007E34B8 /* ClerkKitUI */; };
+		F2CAA8642F8F107D008373AC /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2CAA8632F8F1074008373AC /* Post.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		F25D6C5C2F46A3A900BA25C3 /* Whispering Stone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Whispering Stone.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F2CAA8652F8F1082008373AC /* Whispering Stone.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = "Whispering Stone.xcodeproj"; path = "Whispering Stone/Whispering Stone.xcodeproj"; sourceTree = SOURCE_ROOT; };
-		F2CAA89E2F906D42008373AC /* Whispering Stone.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Whispering Stone.xcodeproj"; sourceTree = "<group>"; };
+		F2CAA8632F8F1074008373AC /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Post.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -41,6 +41,7 @@
 		F25D6C532F46A3A900BA25C3 = {
 			isa = PBXGroup;
 			children = (
+				F2CAA8632F8F1074008373AC /* Post.swift */,
 				F25D6C5E2F46A3A900BA25C3 /* Whispering Stone */,
 				F25D6C5D2F46A3A900BA25C3 /* Products */,
 			);
@@ -50,20 +51,6 @@
 			isa = PBXGroup;
 			children = (
 				F25D6C5C2F46A3A900BA25C3 /* Whispering Stone.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		F2CAA8682F8F1082008373AC /* Products */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		F2CAA8A02F906D42008373AC /* Products */ = {
-			isa = PBXGroup;
-			children = (
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -125,16 +112,6 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F25D6C5D2F46A3A900BA25C3 /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = F2CAA8A02F906D42008373AC /* Products */;
-					ProjectRef = F2CAA89E2F906D42008373AC /* Whispering Stone.xcodeproj */;
-				},
-				{
-					ProductGroup = F2CAA8682F8F1082008373AC /* Products */;
-					ProjectRef = F2CAA8652F8F1082008373AC /* Whispering Stone.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				F25D6C5B2F46A3A900BA25C3 /* Whispering Stone */,
@@ -157,6 +134,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F2CAA8642F8F107D008373AC /* Post.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

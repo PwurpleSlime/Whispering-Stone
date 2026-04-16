@@ -2,7 +2,7 @@
 //  Item.swift
 //  Whispering Stone
 //
-//  Created by Pwurple on 2/18/26.
+//  Created by Pwurple on 4/15/26.
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import SwiftData
 @Model
 final class Item {
     var timestamp: Date
-    
+
     init(timestamp: Date) {
         self.timestamp = timestamp
     }

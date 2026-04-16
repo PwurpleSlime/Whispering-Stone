@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import ClerkKit
 
 @main
 struct Whispering_StoneApp: App {
@@ -23,9 +24,15 @@ struct Whispering_StoneApp: App {
         }
     }()
 
+    init() {
+        Clerk.configure(publishableKey: "pk_test_c2hhcmluZy1tYXJsaW4tOS5jbGVyay5hY2NvdW50cy5kZXYk")
+        
+
+    }
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(Clerk.shared)
         }
         .modelContainer(sharedModelContainer)
     }
