@@ -3,98 +3,144 @@ import SwiftUI
 struct CommentRowView: View {
     @Binding var comment: Comment
     let userId: String
+    let onDelete: () -> Void
+    let onUpdate: (Comment) -> Void
+    
+    @State private var isEditing  = false
+    @State private var editedBody = ""
+    @State private var showDeleteConfirm = false
+
+    var isAuthor: Bool { comment.authorId == userId }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(comment.body)
-                .font(.body)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                AvatarView(name: comment.authorName, size: 28)
 
-            HStack {
-                Text("by \(comment.authorName)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(comment.authorName)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.primary)
+
+                    Text(comment.body)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Spacer()
 
-                // Comment like/dislike
-                HStack(spacing: 12) {
-                    Button {
-                        Task { await likeComment() }
-                    } label: {
-                        Text(comment.likedBy.contains(userId)
-                             ? "👍 \(comment.likeCount)"
-                             : "🤍 \(comment.likeCount)")
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                comment.likedBy.contains(userId)
-                                ? Color.blue.opacity(0.15)
-                                : Color(.systemGray6)
-                            )
-                            .cornerRadius(14)
-                    }
-                    .buttonStyle(.plain)
+                if isAuthor {
+                    Menu {
+                        Button {
+                            editedBody = comment.body
+                            isEditing = true
+                        } label: { Label("Edit", systemImage: "pencil") }
 
-                    Button {
-                        Task { await dislikeComment() }
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: { Label("Delete", systemImage: "trash") }
                     } label: {
-                        Text(comment.dislikedBy.contains(userId)
-                             ? "👎 \(comment.dislikeCount)"
-                             : "🖤 \(comment.dislikeCount)")
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                comment.dislikedBy.contains(userId)
-                                ? Color.red.opacity(0.15)
-                                : Color(.systemGray6)
-                            )
-                            .cornerRadius(14)
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.secondary)
+                            .padding(6)
                     }
-                    .buttonStyle(.plain)
+                }
+            }
+
+            HStack(spacing: 12) {
+                Spacer()
+                reactionButton(
+                    label: comment.likedBy.contains(userId) ? "👍 \(comment.likeCount)" : "🤍 \(comment.likeCount)",
+                    active: comment.likedBy.contains(userId), activeColor: .blue
+                ) { Task { await likeComment() } }
+
+                reactionButton(
+                    label: comment.dislikedBy.contains(userId) ? "👎 \(comment.dislikeCount)" : "🖤 \(comment.dislikeCount)",
+                    active: comment.dislikedBy.contains(userId), activeColor: .red
+                ) { Task { await dislikeComment() } }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .confirmationDialog("Delete this comment?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    try? await APIService.shared.deleteComment(commentId: comment.id)
+                    onDelete()
                 }
             }
         }
-        .padding(12)
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 1)
-        .padding(.horizontal)
+        .sheet(isPresented: $isEditing) {
+            EditCommentSheet(mainContent: $editedBody) {
+                Task {
+                    print("\(comment.id)")
+                    do {
+                        let updated = try await APIService.shared.updateComment(
+                            commentId: comment.id,
+                            body: editedBody
+                        )
+                        onUpdate(updated) // 🔥 send it up instead
+                    } catch {
+                        print(error)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func reactionButton(label: String, active: Bool, activeColor: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(active ? activeColor.opacity(0.12) : Color(.systemGray6))
+                .foregroundColor(active ? activeColor : .primary)
+                .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
     }
 
     func likeComment() async {
-        let snapshot = comment
-        // Optimistic update
-        if comment.likedBy.contains(userId) {
-            comment.likedBy.removeAll { $0 == userId }
-        } else {
-            comment.likedBy.append(userId)
-            comment.dislikedBy.removeAll { $0 == userId }
-        }
-        do {
-            comment = try await APIService.shared.likeComment(commentId: comment.id, userId: userId)
-        } catch {
-            print(error)
-            comment = snapshot
-        }
+        let snap = comment
+        if comment.likedBy.contains(userId) { comment.likedBy.removeAll { $0 == userId } }
+        else { comment.likedBy.append(userId); comment.dislikedBy.removeAll { $0 == userId } }
+        do { comment = try await APIService.shared.likeComment(commentId: comment.id, userId: userId) }
+        catch { comment = snap }
     }
 
     func dislikeComment() async {
-        let snapshot = comment
-        // Optimistic update
-        if comment.dislikedBy.contains(userId) {
-            comment.dislikedBy.removeAll { $0 == userId }
-        } else {
-            comment.dislikedBy.append(userId)
-            comment.likedBy.removeAll { $0 == userId }
-        }
-        do {
-            comment = try await APIService.shared.dislikeComment(commentId: comment.id, userId: userId)
-        } catch {
-            print(error)
-            comment = snapshot
-        }
+        let snap = comment
+        if comment.dislikedBy.contains(userId) { comment.dislikedBy.removeAll { $0 == userId } }
+        else { comment.dislikedBy.append(userId); comment.likedBy.removeAll { $0 == userId } }
+        do { comment = try await APIService.shared.dislikeComment(commentId: comment.id, userId: userId) }
+        catch { comment = snap }
     }
+}
+
+// MARK: - Inline edit sheet
+struct EditCommentSheet: View {
+    @Binding var mainContent: String
+    let onSave: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var swiftBody: some View {  // avoid 'body' naming conflict
+        NavigationStack {
+            TextEditor(text: $mainContent)
+                .padding()
+                .navigationTitle("Edit Comment")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { Task {onSave(); await MainActor.run {dismiss() }}}
+                            .fontWeight(.semibold)
+                            .disabled(mainContent.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+        }
+        .presentationDetents([.medium])
+    }
+
+    var body: some View { swiftBody }
 }

@@ -4,142 +4,191 @@ import ClerkKit
 struct PostDetailView: View {
     @Binding var post: Post
     let userId: String
-    let onLike: () async -> Void
-    let onDislike: () async -> Void
 
     @State private var comments: [Comment] = []
-    @State private var newComment: String = ""
+    @State private var newComment = ""
+    @State private var isEditing  = false
+    @State private var showDeleteConfirm = false
+    
     @Environment(Clerk.self) private var clerk
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var vm: PostViewModel
+
+    var isAuthor: Bool { post.authorId == userId }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-
-                // MARK: Post Header
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(post.title ?? "")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("by \(post.authorName ?? "Unknown")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Text(post.body)
-                        .font(.body)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    // Post like/dislike
-                    HStack(spacing: 20) {
-                        Button {
-                            Task { await onLike() }
-                        } label: {
-                            Text(post.likedBy.contains(userId)
-                                 ? "👍 \(post.likeCount)"
-                                 : "🤍 \(post.likeCount)")
-                                .font(.subheadline)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    post.likedBy.contains(userId)
-                                    ? Color.blue.opacity(0.15)
-                                    : Color(.systemGray6)
-                                )
-                                .cornerRadius(20)
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Post card
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let tag = post.tag, !tag.isEmpty {
+                            Text(tag)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Color(.systemGray5)).clipShape(Capsule())
                         }
-                        .buttonStyle(.plain)
 
-                        Button {
-                            Task { await onDislike() }
-                        } label: {
-                            Text(post.dislikedBy.contains(userId)
-                                 ? "👎 \(post.dislikeCount)"
-                                 : "🖤 \(post.dislikeCount)")
-                                .font(.subheadline)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    post.dislikedBy.contains(userId)
-                                    ? Color.red.opacity(0.15)
-                                    : Color(.systemGray6)
-                                )
-                                .cornerRadius(20)
+                        HStack(spacing: 6) {
+                            AvatarView(name: post.authorName, size: 24)
+                            Text(post.authorName ?? "Unknown")
+                                .font(.caption).foregroundColor(.secondary)
                         }
-                        .buttonStyle(.plain)
+
+                        Text(post.title ?? "")
+                            .font(.title2).fontWeight(.bold)
+
+                        Text(post.body)
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        HStack(spacing: 6) {
+                            Text(post.timeAgo).font(.caption).foregroundColor(.secondary)
+                            Spacer()
+                        }
+
+                        HStack(spacing: 12) {
+                            reactionButton(
+                                label: post.likedBy.contains(userId) ? "👍 \(post.likeCount)" : "🤍 \(post.likeCount)",
+                                active: post.likedBy.contains(userId),
+                                activeColor: .blue
+                            ) { Task { await vm.like(post: post, userId: userId) } }
+
+                            reactionButton(
+                                label: post.dislikedBy.contains(userId) ? "👎 \(post.dislikeCount)" : "🖤 \(post.dislikeCount)",
+                                active: post.dislikedBy.contains(userId),
+                                activeColor: .red
+                            ) { Task { await vm.dislike(post: post, userId: userId) } }
+                        }
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 4)
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    .padding(16)
+                    .background(Color(.systemBackground))
 
+                    Divider()
+
+                    // Comments
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Comments (\(comments.count))")
+                            .font(.headline)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+
+                        ForEach($comments) { $comment in
+                            CommentRowView(
+                                comment: $comment,
+                                userId: userId,
+                                onDelete: {
+                                    comments.removeAll { $0.id == comment.id }
+                                },
+                                onUpdate: { updated in
+                                    if let i = comments.firstIndex(where: { $0.id == updated.id }) {
+                                        comments[i] = updated // 🔥 force array update
+                                    }
+                                }
+                            )
+                            Divider().padding(.leading, 16)
+                        }                    }
+                    .background(Color(.systemBackground))
+
+                    // Spacer so FAB doesn't cover last comment
+                    Color.clear.frame(height: 90)
+                }
+            }
+            .background(Color(.systemGroupedBackground))
+
+            // Comment input bar (pinned to bottom)
+            VStack(spacing: 0) {
                 Divider()
-
-                // MARK: Comments Section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Comments (\(comments.count))")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    ForEach($comments) { $comment in
-                        CommentRowView(comment: $comment, userId: userId)
-                    }
-                }
-
-                // MARK: Add Comment
-                VStack(spacing: 8) {
-                    TextField("Write a comment...", text: $newComment, axis: .vertical)
-                        .lineLimit(3)
+                HStack(spacing: 10) {
+                    TextField("Write a comment…", text: $newComment)
                         .padding(10)
                         .background(Color(.systemGray6))
-                        .cornerRadius(10)
+                        .cornerRadius(20)
 
                     Button {
                         Task { await addComment() }
                     } label: {
-                        Text("Post Comment")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(newComment.isEmpty ? Color.gray : Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(newComment.isEmpty ? .gray : .blue)
                     }
                     .disabled(newComment.isEmpty)
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color(.systemBackground))
             }
-            .padding(.vertical)
         }
-        .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Post")
+        .toolbar {
+            if isAuthor {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button { isEditing = true } label: {
+                            Label("Edit Post", systemImage: "pencil")
+                        }
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete Post", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .confirmationDialog("Delete this post?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task { 
+                    await vm.deletePost(postId: post.id)
+                    dismiss()
+                }
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            EditPostView(
+                postId: post.id,
+                initialTitle: post.title ?? "",
+                initialBody: post.body,
+                initialTag: post.tag ?? ""
+            )
+        }
         .task { await loadComments() }
     }
 
-    func loadComments() async {
-        do {
-            comments = try await APIService.shared.getComments(postId: post.id)
-        } catch {
-            print(error)
+    @ViewBuilder
+    private func reactionButton(label: String, active: Bool, activeColor: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(active ? activeColor.opacity(0.12) : Color(.systemGray6))
+                .foregroundColor(active ? activeColor : .primary)
+                .cornerRadius(20)
         }
+        .buttonStyle(.plain)
+    }
+
+    func loadComments() async {
+        do { comments = try await APIService.shared.getComments(postId: post.id) }
+        catch { print(error) }
     }
 
     func addComment() async {
         guard !newComment.isEmpty else { return }
-        let authorName = (clerk.user?.firstName ?? "") +
-            (clerk.user?.lastName != nil ? " \(clerk.user!.lastName!)" : "")
-        let body: [String: Any] = [
-            "authorId": userId,
-            "authorName": authorName,
-            "body": newComment
-        ]
+        let name = [clerk.user?.firstName, clerk.user?.lastName]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
         do {
-            let comment = try await APIService.shared.createComment(postId: post.id, body: body)
-            comments.append(comment)
+            let c = try await APIService.shared.createComment(
+                postId: post.id,
+                body: ["authorId": userId, "authorName": name, "body": newComment]
+            )
+            comments.append(c)
             newComment = ""
-        } catch {
-            print(error)
-        }
+        } catch { print(error) }
     }
 }
